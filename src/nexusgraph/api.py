@@ -10,15 +10,16 @@ from pydantic import BaseModel, Field
 
 from nexusgraph import ingestion
 
+from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
+from nexusgraph.security import Principal, authenticated_principal
+from nexusgraph.telemetry import metrics, record_http
+from nexusgraph.tenant_risk import simulate_graph
+
 if os.getenv('NEXUSGRAPH_DATABASE_URL'):
     from nexusgraph import sql_graph as registry_graph
     from nexusgraph import sqlstore as store
 else:
     from nexusgraph import registry_graph, store
-from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
-from nexusgraph.security import Principal, authenticated_principal
-from nexusgraph.telemetry import metrics, record_http
-from nexusgraph.tenant_risk import simulate_graph
 
 app = FastAPI(
     title="Aetherion NexusGraph",
