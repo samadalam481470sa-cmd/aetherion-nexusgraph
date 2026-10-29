@@ -1,8 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from nexusgraph.api import app
 from nexusgraph.engine import (
-    Dependency, Supplier, alternatives, criticality, simulate, validate_network,
+    Dependency,
+    Supplier,
+    alternatives,
+    criticality,
+    simulate,
+    validate_network,
 )
 
 client = TestClient(app)
