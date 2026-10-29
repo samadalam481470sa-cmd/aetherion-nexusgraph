@@ -63,6 +63,13 @@ def initialize() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_scenarios_tenant_created
                 ON scenarios(tenant,created_at DESC);
+            CREATE TABLE IF NOT EXISTS outbox (
+                id TEXT PRIMARY KEY,
+                tenant TEXT NOT NULL,
+                event_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                published_at TEXT
+            );
             CREATE TABLE IF NOT EXISTS audit_events (
                 id TEXT PRIMARY KEY,
                 tenant TEXT NOT NULL,
@@ -140,6 +147,13 @@ def save_scenario(tenant: str, actor: str, request: dict, result: dict) -> str:
             (identifier, tenant, actor, timestamp(), json.dumps(request), json.dumps(result)),
         )
         audit(db, tenant, actor, "run_scenario", identifier)
+        db.execute(
+            "INSERT INTO outbox VALUES (?,?,?,?,NULL)",
+            (str(uuid4()), tenant, json.dumps({
+                "event": "scenario.completed", "scenario_id": identifier,
+                "tenant": tenant,
+            }), timestamp()),
+        )
     return identifier
 
 
