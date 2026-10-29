@@ -27,5 +27,9 @@ testpaths = ["tests"]
 line-length = 100
 target-version = "py311"
 
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+ignore = ["B008"] # FastAPI uses Depends() in parameter defaults intentionally
+
 [tool.setuptools.package-data]
 nexusgraph = ["index.html"]
