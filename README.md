@@ -70,3 +70,12 @@ All seeded data is **fictional**; no controlled technical information, classifie
 Apache-2.0 license. Demo/prototype only.
 
 See [architecture and security limitations](docs/ARCHITECTURE.md).
+
+## Additional features
+- Signed OIDC/JWKS bearer-token verification for `NEXUSGRAPH_MODE=oidc`. In this mode the registry tenant is obtained from signed `tenant_id` claims, not request headers. See [OIDC guidance](docs/OIDC.md).
+- Tenant-specific persisted dependency graph: `POST /api/v1/registry/edges`, `GET /api/v1/registry/graph`, `GET /api/v1/registry/criticality`.
+- Bounded supplier CSV import: `POST /api/v1/registry/import-csv` with a JSON string body containing CSV. Header: `id,name,region,tier,capabilities`; semicolon-separated capabilities.
+- Protected aggregate request counter endpoint `GET /metrics` (set `NEXUSGRAPH_METRICS_TOKEN`, supply `X-Metrics-Token`).
+- Brier score and ten-bin calibration diagnostics in `nexusgraph.model_quality` for separately validated binary-outcome data.
+
+**Deployment warning:** The synthetic demo and original `/api/v1/*` simulation routes are public. OIDC currently protects registry endpoints only. These paths and the SQLite storage are unsuitable for production or controlled information. See [production release gates](docs/PRODUCTION_CHECKLIST.md).
