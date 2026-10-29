@@ -68,8 +68,8 @@ def send_pending(database, sql_backend=False, producer=None, limit=100) -> int:
     for row in pending:
         result = {"delivered": False}
 
-        def acknowledged(error, message):
-            result["delivered"] = error is None
+        def acknowledged(error, message, target=result):
+            target["delivered"] = error is None
 
         producer.produce(
             topic=topic,

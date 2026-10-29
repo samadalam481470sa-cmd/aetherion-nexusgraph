@@ -16,7 +16,7 @@ def brier_score(predictions: list[float], outcomes: list[int]) -> float:
         raise ValueError("Predictions must be finite probabilities")
     if any(y not in (0, 1) for y in outcomes):
         raise ValueError("Outcomes must be binary")
-    return mean((p - y) ** 2 for p, y in zip(predictions, outcomes))
+    return mean((p - y) ** 2 for p, y in zip(predictions, outcomes, strict=True))
 
 
 def calibration_report(predictions: list[float], outcomes: list[int]) -> dict:
@@ -28,7 +28,7 @@ def calibration_report(predictions: list[float], outcomes: list[int]) -> dict:
     for index in range(10):
         members = [
             (prediction, outcome)
-            for prediction, outcome in zip(predictions, outcomes)
+            for prediction, outcome in zip(predictions, outcomes, strict=True)
             if min(int(prediction * 10), 9) == index
         ]
         if members:
