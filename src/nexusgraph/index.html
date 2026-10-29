@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aetherion NexusGraph — Supplier Intelligence</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#e7eefc;background:#080f1d}
+*{box-sizing:border-box}body{margin:0}.shell{max-width:1280px;margin:auto;padding:26px}
+header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #23314b;padding-bottom:22px;gap:12px}
+h1{margin:6px 0;font-size:29px;letter-spacing:-.8px}h2{font-size:17px;margin:0 0 20px}
+small,.muted{color:#93a6c6}.mark{font-size:12px;letter-spacing:2px;color:#4be0c9;font-weight:800}
+.pill{border:1px solid #24524e;background:#102d2c;color:#5ce3bc;border-radius:20px;padding:8px 12px;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+.stat,.panel{background:#111c30;border:1px solid #263653;border-radius:16px;padding:22px}
+.stat strong{display:block;font-size:31px;margin:9px 0 0}.stat span{color:#98accb;font-size:12px}
+.columns{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.panel{min-width:0}svg{width:100%;height:auto;display:block}.edge{stroke:#516887;stroke-width:2;opacity:.62}
+.node{fill:#173a57;stroke:#39acc4;stroke-width:2}.node.root{fill:#315e54;stroke:#4ce7a6}
+.node-label{font:12px system-ui;fill:#dceaff}.legend{color:#9eb1cb;font-size:12px;margin-top:10px}
+select,input,button{background:#0c1628;border:1px solid #425776;color:#f1f6ff;border-radius:9px;padding:10px;min-width:0}
+button{background:#18ad9a;border-color:#18ad9a;color:#071b1b;font-weight:800;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}.controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:end}
+.controls label{display:grid;gap:5px;font-size:12px;color:#aebfdb}
+table{border-collapse:collapse;width:100%;font-size:13px}th{text-align:left;color:#8fa7c7;font-weight:500}td,th{padding:11px 6px;border-bottom:1px solid #263653}
+.bar{height:7px;background:#20334c;border-radius:10px;overflow:hidden}.bar i{display:block;background:#21c3ae;height:100%}
+.footer{font-size:12px;color:#839bb7;margin-top:24px}#message{color:#fbd38d;font-size:13px}
+@media(max-width:790px){.columns{grid-template-columns:1fr}.grid{grid-template-columns:1fr}header{align-items:start;flex-direction:column}}
+</style>
+</head><body><div class="shell">
+<header><div><div class="mark">AETHERION / NEXUSGRAPH</div><h1>Supply Chain Intelligence</h1><small>Dependency analytics and probabilistic disruption scenarios</small></div><span class="pill">● SYNTHETIC DATA ONLY</span></header>
+<section class="grid"><div class="stat"><span>SUPPLIER ENTITIES</span><strong id="supplierCount">—</strong></div><div class="stat"><span>DEPENDENCY RELATIONSHIPS</span><strong id="edgeCount">—</strong></div><div class="stat"><span>HIGHEST GRAPH INFLUENCE</span><strong id="topRisk">—</strong></div></section>
+<div class="columns"><section class="panel"><h2>Supplier dependency network</h2><svg id="graph" role="img" aria-label="Directed supplier graph"></svg><div class="legend">Lines represent upstream-to-downstream supply relationships. Layout is illustrative.</div></section>
+<section class="panel"><h2>Disruption scenario</h2><div class="controls"><label>Disrupted supplier<select id="supplier"></select></label><label>Severity<input id="severity" type="number" min="0" max="1" step=".1" value=".8"></label><button id="run">Run simulation</button></div><div id="message" role="status">Select a supplier to simulate cascading exposure.</div><table><thead><tr><th>Supplier</th><th>Avg. exposure</th><th>P95</th></tr></thead><tbody id="riskRows"></tbody></table></section></div>
+<p class="footer">Prototype decision-support only. Exposure values are model estimates, not validated supplier probabilities, contract evaluations, or certification decisions. <a href="/docs" style="color:#65d9d0">API documentation</a>.</p>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let network;
+const ns="http://www.w3.org/2000/svg";
+function element(tag,attrs,text){const e=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;return e}
+function draw(data){
+ const svg=$('graph');svg.replaceChildren();svg.setAttribute('viewBox','0 0 700 430');
+ const positions={};const groups={};for(const s of data.suppliers)(groups[s.tier]??=[]).push(s);
+ for(const [tier,list] of Object.entries(groups))list.forEach((s,i)=>positions[s.id]={x:80+(i+1)*560/(list.length+1),y:65+Number(tier)*135});
+ for(const edge of data.dependencies){const a=positions[edge.upstream],b=positions[edge.downstream];svg.append(element('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:'edge'}))}
+ for(const s of data.suppliers){const p=positions[s.id];svg.append(element('circle',{cx:p.x,cy:p.y,r:19,class:'node'+(s.tier===0?' root':'')}));svg.append(element('text',{x:p.x,y:p.y+36,'text-anchor':'middle',class:'node-label'},s.id))}
+}
+async function request(path,opts){const r=await fetch(path,opts);if(!r.ok)throw Error('Request failed: '+r.status);return r.json()}
+async function start(){try{
+ network=await request('/api/v1/network');const ranks=await request('/api/v1/criticality');
+ $('supplierCount').textContent=network.suppliers.length;$('edgeCount').textContent=network.dependencies.length;
+ $('topRisk').textContent=ranks.rankings[0].supplier_id;
+ for(const s of network.suppliers){const o=document.createElement('option');o.value=s.id;o.textContent=s.id+' · '+s.name;$('supplier').append(o)}
+ $('supplier').value='SUP-002';draw(network);await run();
+}catch(e){$('message').textContent=e.message}}
+async function run(){const button=$('run');button.disabled=true;$('message').textContent='Calculating sampled propagation…';
+try{const severity=Number($('severity').value);if(!Number.isFinite(severity)||severity<0||severity>1)throw Error('Severity must be between 0 and 1');
+ const result=await request('/api/v1/scenarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({disrupted_supplier:$('supplier').value,severity,trials:500,seed:42})});
+ const body=$('riskRows');body.replaceChildren();
+ for(const item of result.results.filter(row=>row.mean_exposure>.00001)){
+ const tr=document.createElement('tr');const a=document.createElement('td');a.textContent=item.supplier_id;const b=document.createElement('td');b.textContent=(item.mean_exposure*100).toFixed(1)+'%';const c=document.createElement('td');c.textContent=(item.p95_exposure*100).toFixed(1)+'%';tr.append(a,b,c);body.append(tr)}
+ $('message').textContent='Completed '+result.trials+' seeded trials. Synthetic estimated exposure.';
+}catch(e){$('message').textContent=e.message}finally{button.disabled=false}}
+$('run').addEventListener('click',run);start();
+</script></body></html>
