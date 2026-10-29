@@ -15,7 +15,6 @@ from nexusgraph.security import Principal, authenticated_principal
 from nexusgraph.telemetry import metrics, record_http
 from nexusgraph.tenant_risk import simulate_graph
 
-
 app = FastAPI(
     title="Aetherion NexusGraph",
     description="Synthetic aerospace supply-chain risk intelligence prototype",
