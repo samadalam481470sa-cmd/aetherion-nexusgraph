@@ -1,8 +1,8 @@
 """Small ASGI-level request metrics, deliberately excluding sensitive identifiers."""
 from __future__ import annotations
 
+import hmac
 import os
-import time
 from collections import Counter
 from threading import Lock
 
@@ -28,7 +28,6 @@ async def metrics(request: Request):
     expected = os.getenv("NEXUSGRAPH_METRICS_TOKEN")
     if not expected:
         raise HTTPException(status_code=404, detail="Metrics disabled")
-    import hmac
 
     supplied = request.headers.get("X-Metrics-Token", "")
     if not hmac.compare_digest(expected, supplied):
