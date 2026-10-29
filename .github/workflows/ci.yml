@@ -4,14 +4,65 @@ on:
   pull_request:
 permissions:
   contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install -e ".[dev]"
-      - run: ruff check src tests
-      - run: pytest -q
+      - name: Install project and development tools
+        run: python -m pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check src tests
+      - name: Unit and API tests
+        run: pytest -q
+      - name: Build distributable wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          wheel = next(Path("dist").glob("*.whl"))
+          with ZipFile(wheel) as archive:
+              assert any(path.endswith("nexusgraph/index.html") for path in archive.namelist())
+          print("Dashboard is included in installable wheel")
+          PY
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start
+        run: docker compose up -d --build
+      - name: Smoke-test container and dashboard
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from urllib.error import URLError
+          from urllib.request import urlopen
+          for attempt in range(30):
+              try:
+                  with urlopen("http://127.0.0.1:8000/health", timeout=3) as r:
+                      assert json.load(r)["status"] == "ok"
+                  with urlopen("http://127.0.0.1:8000/", timeout=3) as r:
+                      assert "Supply Chain Intelligence" in r.read().decode()
+                  print("Container API + dashboard smoke check passed")
+                  break
+              except (URLError, TimeoutError, ConnectionError):
+                  time.sleep(2)
+          else:
+              raise SystemExit("Service did not become available")
+          PY
+      - name: Container logs
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Cleanup
+        if: always()
+        run: docker compose down
