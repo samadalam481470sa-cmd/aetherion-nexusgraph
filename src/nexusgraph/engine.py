@@ -1,11 +1,11 @@
 """Deterministic, interpretable dependency propagation on a synthetic supply graph."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections import defaultdict, deque
+from dataclasses import dataclass
+from math import ceil
 from random import Random
 from statistics import mean
-from math import ceil
 
 
 @dataclass(frozen=True)
