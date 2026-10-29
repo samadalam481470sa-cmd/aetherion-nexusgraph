@@ -43,6 +43,9 @@ def initialize():
         id VARCHAR(36) PRIMARY KEY, tenant VARCHAR(64) NOT NULL,
         actor VARCHAR(200) NOT NULL, created_at TEXT NOT NULL,
         request_json TEXT NOT NULL,result_json TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS outbox (
+        id VARCHAR(36) PRIMARY KEY, tenant VARCHAR(64) NOT NULL,
+        event_json TEXT NOT NULL, created_at TEXT NOT NULL, published_at TEXT)""",
         """CREATE TABLE IF NOT EXISTS audit_events (
         id VARCHAR(36) PRIMARY KEY, tenant VARCHAR(64) NOT NULL,
         actor VARCHAR(200) NOT NULL, action VARCHAR(64) NOT NULL,
@@ -120,6 +123,12 @@ def save_scenario(tenant, actor, request, result):
             request=json.dumps(request), result=json.dumps(result),
         ))
         audit(conn, tenant, actor, "run_scenario", identifier)
+        conn.execute(text(
+            "INSERT INTO outbox VALUES (:id,:tenant,:event,:created,NULL)"
+        ), dict(id=str(uuid4()), tenant=tenant, event=json.dumps({
+            "event": "scenario.completed", "scenario_id": identifier,
+            "tenant": tenant,
+        }), created=timestamp()))
     return identifier
 
 
