@@ -3,9 +3,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+
+from nexusgraph import store
+from nexusgraph.security import Principal, principal
 
 from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
 
@@ -62,3 +65,52 @@ def run_scenario(request: ScenarioRequest):
 @app.get("/", include_in_schema=False)
 def home():
     return FileResponse(Path(__file__).with_name("index.html"))
+
+
+class SupplierInput(BaseModel):
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+    name: str = Field(min_length=1, max_length=200)
+    region: str = Field(min_length=2, max_length=32)
+    capabilities: list[str] = Field(default_factory=list, max_length=30)
+    tier: int = Field(ge=0, le=20)
+
+
+@app.post("/api/v1/registry/seed")
+def seed_registry(identity: Principal = Depends(principal)):
+    store.initialize()
+    return {"inserted": store.seed(identity.tenant, identity.actor)}
+
+
+@app.get("/api/v1/registry/suppliers")
+def registry_suppliers(identity: Principal = Depends(principal)):
+    store.initialize()
+    return {"suppliers": store.list_suppliers(identity.tenant)}
+
+
+@app.put("/api/v1/registry/suppliers")
+def registry_upsert(supplier: SupplierInput, identity: Principal = Depends(principal)):
+    store.initialize()
+    return store.upsert_supplier(identity.tenant, identity.actor, supplier.model_dump())
+
+
+@app.post("/api/v1/registry/scenarios")
+def registry_scenario(request: ScenarioRequest, identity: Principal = Depends(principal)):
+    store.initialize()
+    try:
+        result = simulate(**request.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    scenario_id = store.save_scenario(identity.tenant, identity.actor, request.model_dump(), result)
+    return {"scenario_id": scenario_id, **result}
+
+
+@app.get("/api/v1/registry/scenarios")
+def registry_scenarios(limit: int = Query(default=25, ge=1, le=100), identity: Principal = Depends(principal)):
+    store.initialize()
+    return {"scenarios": store.list_scenarios(identity.tenant, limit)}
+
+
+@app.get("/api/v1/registry/audit")
+def registry_audit(limit: int = Query(default=50, ge=1, le=100), identity: Principal = Depends(principal)):
+    store.initialize()
+    return {"events": store.list_audit(identity.tenant, limit)}
