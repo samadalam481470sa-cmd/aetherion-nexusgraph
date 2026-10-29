@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from nexusgraph import store
+from nexusgraph import registry_graph, store
 from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
 from nexusgraph.security import Principal, authenticated_principal
 from nexusgraph.telemetry import metrics, record_http
@@ -116,3 +116,31 @@ def registry_scenarios(limit: int = Query(default=25, ge=1, le=100), identity: P
 def registry_audit(limit: int = Query(default=50, ge=1, le=100), identity: Principal = Depends(authenticated_principal)):
     store.initialize()
     return {"events": store.list_audit(identity.tenant, limit)}
+
+
+class EdgeInput(BaseModel):
+    upstream: str = Field(min_length=1, max_length=64)
+    downstream: str = Field(min_length=1, max_length=64)
+    part: str = Field(min_length=1, max_length=128)
+    dependency: float = Field(ge=0, le=1)
+
+@app.post("/api/v1/registry/edges")
+def upsert_dependency(edge: EdgeInput, identity: Principal = Depends(authenticated_principal)):
+    store.initialize()
+    registry_graph.initialize_edges()
+    try:
+        return registry_graph.upsert_edge(identity.tenant, identity.actor, edge.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+@app.get("/api/v1/registry/graph")
+def tenant_graph(identity: Principal = Depends(authenticated_principal)):
+    store.initialize()
+    registry_graph.initialize_edges()
+    return registry_graph.graph(identity.tenant)
+
+@app.get("/api/v1/registry/criticality")
+def tenant_criticality(identity: Principal = Depends(authenticated_principal)):
+    store.initialize()
+    registry_graph.initialize_edges()
+    return {"rankings": registry_graph.criticality_for_tenant(identity.tenant)}
