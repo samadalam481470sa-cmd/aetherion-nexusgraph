@@ -8,15 +8,17 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from nexusgraph import store
-from nexusgraph.security import Principal, principal
-
 from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
+from nexusgraph.security import Principal, authenticated_principal
+from nexusgraph.telemetry import metrics, record_http
 
 app = FastAPI(
     title="Aetherion NexusGraph",
     description="Synthetic aerospace supply-chain risk intelligence prototype",
     version="0.1.0",
 )
+app.middleware("http")(record_http)
+app.add_api_route("/metrics", metrics, methods=["GET"], include_in_schema=False)
 
 
 class ScenarioRequest(BaseModel):
@@ -76,25 +78,25 @@ class SupplierInput(BaseModel):
 
 
 @app.post("/api/v1/registry/seed")
-def seed_registry(identity: Principal = Depends(principal)):
+def seed_registry(identity: Principal = Depends(authenticated_principal)):
     store.initialize()
     return {"inserted": store.seed(identity.tenant, identity.actor)}
 
 
 @app.get("/api/v1/registry/suppliers")
-def registry_suppliers(identity: Principal = Depends(principal)):
+def registry_suppliers(identity: Principal = Depends(authenticated_principal)):
     store.initialize()
     return {"suppliers": store.list_suppliers(identity.tenant)}
 
 
 @app.put("/api/v1/registry/suppliers")
-def registry_upsert(supplier: SupplierInput, identity: Principal = Depends(principal)):
+def registry_upsert(supplier: SupplierInput, identity: Principal = Depends(authenticated_principal)):
     store.initialize()
     return store.upsert_supplier(identity.tenant, identity.actor, supplier.model_dump())
 
 
 @app.post("/api/v1/registry/scenarios")
-def registry_scenario(request: ScenarioRequest, identity: Principal = Depends(principal)):
+def registry_scenario(request: ScenarioRequest, identity: Principal = Depends(authenticated_principal)):
     store.initialize()
     try:
         result = simulate(**request.model_dump())
@@ -105,12 +107,12 @@ def registry_scenario(request: ScenarioRequest, identity: Principal = Depends(pr
 
 
 @app.get("/api/v1/registry/scenarios")
-def registry_scenarios(limit: int = Query(default=25, ge=1, le=100), identity: Principal = Depends(principal)):
+def registry_scenarios(limit: int = Query(default=25, ge=1, le=100), identity: Principal = Depends(authenticated_principal)):
     store.initialize()
     return {"scenarios": store.list_scenarios(identity.tenant, limit)}
 
 
 @app.get("/api/v1/registry/audit")
-def registry_audit(limit: int = Query(default=50, ge=1, le=100), identity: Principal = Depends(principal)):
+def registry_audit(limit: int = Query(default=50, ge=1, le=100), identity: Principal = Depends(authenticated_principal)):
     store.initialize()
     return {"events": store.list_audit(identity.tenant, limit)}
