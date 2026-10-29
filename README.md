@@ -79,3 +79,9 @@ See [architecture and security limitations](docs/ARCHITECTURE.md).
 - Brier score and ten-bin calibration diagnostics in `nexusgraph.model_quality` for separately validated binary-outcome data.
 
 **Deployment warning:** The synthetic demo and original `/api/v1/*` simulation routes are public. OIDC currently protects registry endpoints only. These paths and the SQLite storage are unsuitable for production or controlled information. See [production release gates](docs/PRODUCTION_CHECKLIST.md).
+
+## Optional Neo4j graph projection
+Install `pip install -e ".[graph]"` and follow [Neo4j integration](docs/GRAPH_INTEGRATION.md). A tenant-scoped projection script uses parameterized queries and includes tests with a mocked driver. Neo4j is an optional projection, not an authoritative write database.
+
+## Verification
+GitHub Actions runs lint, tests, packaging checks, and a container smoke test on pushes. **Do not assume CI passed until GitHub Actions shows green**. None of the current code has been certified against real aerospace supplier data, and the production [release checklist](docs/PRODUCTION_CHECKLIST.md) contains significant outstanding work.
