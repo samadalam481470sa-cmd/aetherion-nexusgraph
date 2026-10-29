@@ -11,6 +11,7 @@ from nexusgraph import ingestion, registry_graph, store
 from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
 from nexusgraph.security import Principal, authenticated_principal
 from nexusgraph.telemetry import metrics, record_http
+from nexusgraph.tenant_risk import simulate_graph
 
 app = FastAPI(
     title="Aetherion NexusGraph",
@@ -153,3 +154,23 @@ def registry_import_csv(payload: str, identity: Principal = Depends(authenticate
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"imported": count}
+
+
+@app.post("/api/v1/registry/simulate-graph")
+def simulate_tenant_graph(
+    request: ScenarioRequest, identity: Principal = Depends(authenticated_principal)
+):
+    store.initialize()
+    registry_graph.initialize_edges()
+    snapshot = registry_graph.graph(identity.tenant)
+    try:
+        result = simulate_graph(
+            snapshot, request.disrupted_supplier, request.severity,
+            request.trials, request.seed,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    scenario_id = store.save_scenario(
+        identity.tenant, identity.actor, request.model_dump(), result
+    )
+    return {"scenario_id": scenario_id, **result}
