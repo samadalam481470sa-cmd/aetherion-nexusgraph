@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from nexusgraph.engine import SUPPLIERS, DEPENDENCIES, simulate, criticality, alternatives
+
+from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
 
 app = FastAPI(
     title="Aetherion NexusGraph",
