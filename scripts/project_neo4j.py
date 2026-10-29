@@ -6,7 +6,7 @@ import os
 
 from neo4j import GraphDatabase
 
-from nexusgraph import registry_graph, store
+from nexusgraph.backend import registry_graph, store
 from nexusgraph.neo4j_projection import project_graph
 
 
