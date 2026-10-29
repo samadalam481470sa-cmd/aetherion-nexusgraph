@@ -5,7 +5,6 @@ Never put supplier details, documents or secret data into broker event payloads.
 """
 from __future__ import annotations
 
-import json
 import os
 
 from sqlalchemy import text
