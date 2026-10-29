@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from nexusgraph import ingestion
+from nexusgraph import document_archive, ingestion
 
 from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
 from nexusgraph.security import Principal, authenticated_principal
@@ -182,3 +182,40 @@ def simulate_tenant_graph(
         identity.tenant, identity.actor, request.model_dump(), result
     )
     return {"scenario_id": scenario_id, **result}
+
+
+class EvidenceInput(BaseModel):
+    supplier_id: str = Field(min_length=1, max_length=64)
+    kind: str = Field(min_length=1, max_length=64)
+    payload: dict
+
+@app.post("/api/v1/registry/evidence")
+def add_evidence(
+    entry: EvidenceInput, identity: Principal = Depends(authenticated_principal)
+):
+    if os.getenv("NEXUSGRAPH_MODE") != "oidc":
+        raise HTTPException(status_code=403, detail="OIDC mode required for evidence archive")
+    store.initialize()
+    if entry.supplier_id not in {s['id'] for s in store.list_suppliers(identity.tenant)}:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    try:
+        collection = document_archive.connect_collection()
+        return document_archive.archive_document(
+            collection, identity.tenant, identity.actor,
+            entry.supplier_id, entry.kind, entry.payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+@app.get("/api/v1/registry/evidence/{supplier_id}")
+def get_evidence(
+    supplier_id: str, identity: Principal = Depends(authenticated_principal)
+):
+    if os.getenv("NEXUSGRAPH_MODE") != "oidc":
+        raise HTTPException(status_code=403, detail="OIDC mode required for evidence archive")
+    collection = document_archive.connect_collection()
+    return {
+        "documents": document_archive.list_documents(
+            collection, identity.tenant, supplier_id
+        )
+    }
