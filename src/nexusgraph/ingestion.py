@@ -52,9 +52,10 @@ def parse_csv(text: str, maximum: int = 500) -> list[dict]:
         raise ValueError("Malformed supplier CSV") from exc
 
 
-def import_suppliers(tenant: str, actor: str, csv_text: str) -> int:
+def import_suppliers(tenant: str, actor: str, csv_text: str, backend=None) -> int:
     rows = parse_csv(csv_text)
-    store.initialize()
+    database = backend if backend is not None else store
+    database.initialize()
     for supplier in rows:
-        store.upsert_supplier(tenant, actor, supplier)
+        database.upsert_supplier(tenant, actor, supplier)
     return len(rows)
