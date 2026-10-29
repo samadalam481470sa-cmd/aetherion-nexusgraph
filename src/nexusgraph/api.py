@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from nexusgraph import registry_graph, store
+from nexusgraph import ingestion, registry_graph, store
 from nexusgraph.engine import DEPENDENCIES, SUPPLIERS, alternatives, criticality, simulate
 from nexusgraph.security import Principal, authenticated_principal
 from nexusgraph.telemetry import metrics, record_http
@@ -144,3 +144,12 @@ def tenant_criticality(identity: Principal = Depends(authenticated_principal)):
     store.initialize()
     registry_graph.initialize_edges()
     return {"rankings": registry_graph.criticality_for_tenant(identity.tenant)}
+
+
+@app.post("/api/v1/registry/import-csv")
+def registry_import_csv(payload: str, identity: Principal = Depends(authenticated_principal)):
+    try:
+        count = ingestion.import_suppliers(identity.tenant, identity.actor, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"imported": count}
